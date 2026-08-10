@@ -112,9 +112,48 @@ curl -i https://www.umlout.com/.well-known/oauth-authorization-server
 A `404` is correct and expected. Anything returning HTML is the interceptor —
 try the same command off the VPN or on a different network.
 
+## `HTTP 405: Invalid OAuth error response`
+
+Also shows up as a bare `405 Not Allowed` HTML page in the log.
+
+```
+Connection error: ServerError: HTTP 405: Invalid OAuth error response:
+SyntaxError: Unexpected token '<', "<html>
+<h"... is not valid JSON. Raw body: <html>
+<head><title>405 Not Allowed</title></head>
+    at registerClient (...)
+    at SSEClientTransport._authThenStart (...)
+```
+
+**Your API key was rejected.** Nothing in that message says so, which is what makes it hard.
+
+Here is the actual sequence. The bridge opens the stream, the server answers `401`, and `mcp-remote`
+reads any `401` as "this server wants OAuth". It then tries to register itself as an OAuth client by
+POSTing to `/register` — an endpoint that does not exist here, because Umlout authenticates with a
+static API key and runs no OAuth server. The web server answers that POST with a plain `405` HTML
+page, the bridge tries to parse it as an OAuth error object, and dies. The `405`, the HTML and the
+web server's name in the output are all downstream of the original `401`.
+
+Confirm it by asking the server directly:
+
+```bash
+curl -i --max-time 5 -H "Authorization: Bearer YOUR_API_KEY" https://www.umlout.com/mcp/sse
+```
+
+- `401` with `{"detail":"Invalid or inactive API key."}` — the key is rejected. See
+  [HTTP 401](#http-401) below for why.
+- `200` with `content-type: text/event-stream` — the key is fine and the problem is elsewhere.
+  (The command will hang until `--max-time` cuts it off. That is the stream working.)
+
+The cause that hides best: **a key from the wrong environment**. If you run Umlout locally as well as
+using the hosted service, a key minted against your local stack is unknown to production and is
+rejected exactly like a revoked one. Keys are not portable between environments — check which one
+issued the key before assuming it is broken.
+
 ## HTTP 401
 
-The key is wrong, revoked, or not being sent.
+The key is wrong, revoked, or not being sent. Through the `mcp-remote` bridge this surfaces as a
+confusing `405` instead — see [the section above](#http-405-invalid-oauth-error-response).
 
 - Copy the key again from **Profile → MCP API Keys**. It is shown once at creation and cannot be
   recovered later — if you did not save it, revoke it and make a new one.
