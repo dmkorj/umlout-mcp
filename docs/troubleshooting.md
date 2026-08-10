@@ -25,7 +25,92 @@ The server never connected, and most clients fail quietly.
   `python3 -m json.tool < your_config.json`.
 - **Remove the `_comment` field** if you copied a file from [../examples/](../examples/) into a
   client that rejects unknown keys.
-- **Claude Desktop needs Node.js** for the `npx mcp-remote` bridge. Check with `node --version`.
+- **Claude Desktop needs Node.js** for the `npx mcp-remote` bridge. Check with `node --version`; if
+  the log says `Failed to spawn process`, see [that section below](#failed-to-spawn-process-no-such-file-or-directory).
+
+## `Failed to spawn process: No such file or directory`
+
+In the Claude Desktop log, a few milliseconds after startup:
+
+```
+[info] Using MCP server command: npx with path: { ... }
+Failed to spawn process: No such file or directory
+[info] Server transport closed unexpectedly
+```
+
+There is no `npx` on the PATH Claude Desktop uses. The log names the command but
+not what is missing, which makes this look like a server problem when it is not.
+
+Check in a terminal:
+
+```bash
+node --version
+```
+
+**If that says "command not found"**, Node.js is not installed. The `mcp-remote`
+bridge runs through `npx`, so it cannot start. On macOS:
+
+```bash
+brew install node
+```
+
+Then **fully quit Claude Desktop** (⌘Q — closing the window is not enough) and reopen it.
+Homebrew installs to `/opt/homebrew/bin`, which is already on Claude Desktop's PATH.
+
+**If `node --version` works but Claude Desktop still cannot spawn it**, your Node
+lives somewhere Claude Desktop does not look. This is the normal case for
+[nvm](https://github.com/nvm-sh/nvm), which puts Node under `~/.nvm/versions/...`
+and adds it to the PATH from your shell profile — a GUI app never reads that. The
+PATH Claude Desktop actually uses is printed in the log line above; nvm's directory
+will not be in it.
+
+Find the real path and hardcode it:
+
+```bash
+which npx
+```
+
+```json
+{
+  "mcpServers": {
+    "umlout": {
+      "command": "/Users/you/.nvm/versions/node/v22.11.0/bin/npx",
+      "args": [
+        "-y", "mcp-remote", "https://www.umlout.com/mcp/sse",
+        "--header", "Authorization: Bearer YOUR_API_KEY"
+      ]
+    }
+  }
+}
+```
+
+Note that an nvm path pins a specific Node version, so it breaks when you remove
+that version. A Homebrew install avoids the problem entirely.
+
+## `Unexpected token '<', "<!doctype "... is not valid JSON`
+
+```
+[pid] Discovering OAuth server configuration...
+[pid] Connection error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+```
+
+`mcp-remote` checks for OAuth metadata before it connects, and something answered
+that check with an HTML page instead of JSON — so it never got as far as sending
+your API key.
+
+Umlout authenticates with a static API key and serves no OAuth metadata, so those
+probes return 404 and the bridge falls through to your key. Getting HTML back
+instead means something between you and the server replied first: a corporate
+proxy, a VPN portal, or a captive-portal login page on public Wi-Fi.
+
+Confirm what you are actually reaching:
+
+```bash
+curl -i https://www.umlout.com/.well-known/oauth-authorization-server
+```
+
+A `404` is correct and expected. Anything returning HTML is the interceptor —
+try the same command off the VPN or on a different network.
 
 ## HTTP 401
 
