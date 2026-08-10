@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dmkorj/umlout",
+  "title": "Umlout",
+  "description": "Create and edit UML, flowchart, wireframe and sequence diagrams on an Umlout whiteboard.",
+  "version": "1.0.0",
+  "websiteUrl": "https://www.umlout.com",
+  "repository": {
+    "url": "https://github.com/dmkorj/umlout-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "sse",
+      "url": "https://www.umlout.com/mcp/sse",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer token. Create a key at https://www.umlout.com/profile under MCP API Keys.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

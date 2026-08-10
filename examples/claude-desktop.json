@@ -1,0 +1,15 @@
+{
+  "_comment": "Claude Desktop — ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows). Replace YOUR_API_KEY, then fully quit and reopen Claude Desktop. Requires Node.js for npx. If your build supports remote servers directly, use the config in cursor.json instead — same shape.",
+  "mcpServers": {
+    "umlout": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://www.umlout.com/mcp/sse",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY"
+      ]
+    }
+  }
+}

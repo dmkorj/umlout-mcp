@@ -1,0 +1,20 @@
+{
+  "_comment": "VS Code Copilot — .vscode/mcp.json in your workspace. This version prompts for the key on first use and stores it in VS Code's secret storage, so nothing secret is committed. Then open Copilot Chat in Agent mode and pick the umlout tools.",
+  "inputs": [
+    {
+      "id": "umlout-api-key",
+      "type": "promptString",
+      "description": "Umlout API key (Profile -> MCP API Keys)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "umlout": {
+      "type": "sse",
+      "url": "https://www.umlout.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${input:umlout-api-key}"
+      }
+    }
+  }
+}
