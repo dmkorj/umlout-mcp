@@ -7,7 +7,8 @@
   "websiteUrl": "https://www.umlout.com",
   "repository": {
     "url": "https://github.com/dmkorj/umlout-mcp",
-    "source": "github"
+    "source": "github",
+    "id": "1330119079"
   },
   "remotes": [
     {
