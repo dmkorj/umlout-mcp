@@ -3,13 +3,13 @@
 ## Creating a key
 
 1. Sign in at [umlout.com](https://www.umlout.com).
-2. Open **Profile → MCP API Keys**.
+2. Open **Profile → AI clients** and pick your client.
 3. Create a key and copy it immediately — it is shown once and stored only as a hash, so it cannot
    be recovered afterwards. Lost a key? Revoke it and create a new one.
 
 ## Sending the key
 
-Every request to `https://www.umlout.com/mcp/sse` must carry the key in one of two headers:
+Every request to `https://www.umlout.com/mcp/http` must carry the key in one of two headers:
 
 ```http
 Authorization: Bearer YOUR_API_KEY
@@ -35,6 +35,26 @@ an owner can delete a model or rename and delete a diagram.
 There is no organisation-wide or admin-scoped key. If two people should each drive their own
 workspace, they each create their own key.
 
+## Signing in without a key (OAuth)
+
+Some clients take only a server's address and have no field for a key: ChatGPT's connectors,
+Grok's, and Claude's own **Settings → Connectors → Add custom connector**. For them, Umlout's MCP
+server is an OAuth 2.1 protected resource:
+
+1. Give the client `https://www.umlout.com/mcp/http`.
+2. The client registers itself and opens an Umlout page in your browser. It shows the name the
+   client gave itself, everything it will be able to do, and where you will be sent back.
+3. Press **Allow**. The client receives a token and connects.
+
+The permission appears in **Profile → AI clients** as a *Browser sign-in* and is removed with
+**Disconnect**. It is not a key and does not count toward the five keys. A token opens exactly
+what an MCP key opens — the MCP server, as you, with your permissions — and nothing on the REST
+API.
+
+Discovery: the `401` names `https://www.umlout.com/mcp/.well-known/oauth-protected-resource`, which
+names the authorization server `https://www.umlout.com`, whose metadata is at
+`/.well-known/oauth-authorization-server`. PKCE (S256) is required; clients are public.
+
 ## Rate limits
 
 | Scope | Limit | Window |
@@ -54,7 +74,7 @@ Exceeding a limit returns an error to the client; nothing is partially written.
 
 ## Rotating and revoking
 
-Keys are listed in **Profile → MCP API Keys** and can be revoked individually. Revocation takes
+Keys are listed in **Profile → AI clients** and can be revoked individually. Revocation takes
 effect immediately — any client still holding the key starts failing auth on its next request.
 
 To rotate without downtime: create the new key, update your client config, restart the client,

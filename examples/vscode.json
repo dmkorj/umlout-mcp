@@ -4,14 +4,14 @@
     {
       "id": "umlout-api-key",
       "type": "promptString",
-      "description": "Umlout API key (Profile -> MCP API Keys)",
+      "description": "Umlout API key (Profile -> AI clients)",
       "password": true
     }
   ],
   "servers": {
     "umlout": {
-      "type": "sse",
-      "url": "https://www.umlout.com/mcp/sse",
+      "type": "http",
+      "url": "https://www.umlout.com/mcp/http",
       "headers": {
         "Authorization": "Bearer ${input:umlout-api-key}"
       }

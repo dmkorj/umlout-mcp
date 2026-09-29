@@ -2,7 +2,7 @@
   "_comment": "Cursor — ~/.cursor/mcp.json for every project, or .cursor/mcp.json inside one project. Replace YOUR_API_KEY and reload Cursor. Check Settings -> MCP for a green indicator.",
   "mcpServers": {
     "umlout": {
-      "url": "https://www.umlout.com/mcp/sse",
+      "url": "https://www.umlout.com/mcp/http",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }

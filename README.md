@@ -7,15 +7,19 @@ Claude, Cursor, VS Code Copilot and any other MCP client can create and edit dia
 [Umlout](https://www.umlout.com) workspace — UML class and sequence diagrams, flowcharts, activity
 diagrams, wireframes and domain models.
 
-Nothing to install and nothing to run: the server is hosted at `https://www.umlout.com/mcp/sse`.
+Nothing to install and nothing to run: the server is hosted at `https://www.umlout.com/mcp/http`
+(Streamable HTTP). The older SSE address, `/mcp/sse`, still answers, but an SSE session does not
+survive a restart of the service, so a client pointed at it fails after every deploy until it is
+reconnected by hand. Use `/mcp/http`.
 You only need an API key.
 
 ---
 
 ## Quick start
 
-**1. Get an API key.** Sign in at [umlout.com](https://www.umlout.com), open **Profile → MCP API
-Keys**, and create a key.
+**1. Get an API key.** Sign in at [umlout.com](https://www.umlout.com), open **Profile → AI clients**,
+pick your client and create a key. The profile page gives the exact text for your client with
+the key already in it.
 
 **2. Add the server to your client.**
 
@@ -23,14 +27,14 @@ Keys**, and create a key.
 <summary><b>Claude Code</b></summary>
 
 ```bash
-claude mcp add --transport sse umlout https://www.umlout.com/mcp/sse --header "Authorization: Bearer YOUR_API_KEY"
+claude mcp add --transport http umlout https://www.umlout.com/mcp/http --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
 More options, including project scope: [examples/claude-code.md](examples/claude-code.md).
 </details>
 
 <details>
-<summary><b>Cursor</b> · <b>VS Code</b> — clients that speak remote SSE natively</summary>
+<summary><b>Cursor</b> · <b>VS Code</b></summary>
 
 `~/.cursor/mcp.json`:
 
@@ -38,14 +42,15 @@ More options, including project scope: [examples/claude-code.md](examples/claude
 {
   "mcpServers": {
     "umlout": {
-      "url": "https://www.umlout.com/mcp/sse",
+      "url": "https://www.umlout.com/mcp/http",
       "headers": { "Authorization": "Bearer YOUR_API_KEY" }
     }
   }
 }
 ```
 
-For VS Code Copilot use [examples/vscode.json](examples/vscode.json) — it prompts for the key and
+VS Code reads a different shape — `servers`, not `mcpServers`, and `"type": "http"` — so use
+[examples/vscode.json](examples/vscode.json) in `.vscode/mcp.json`. It prompts for the key and
 keeps it in VS Code's secret storage instead of a committed file.
 </details>
 
@@ -63,7 +68,7 @@ Claude Desktop's config file does not take a remote URL directly, so route it th
     "umlout": {
       "command": "npx",
       "args": [
-        "-y", "mcp-remote", "https://www.umlout.com/mcp/sse",
+        "-y", "mcp-remote", "https://www.umlout.com/mcp/http",
         "--header", "Authorization: Bearer YOUR_API_KEY"
       ]
     }
@@ -72,6 +77,41 @@ Claude Desktop's config file does not take a remote URL directly, so route it th
 ```
 
 Then **quit Claude Desktop completely** and reopen it — closing the window is not enough.
+</details>
+
+<details>
+<summary><b>Codex</b> · <b>Gemini CLI</b> · <b>Antigravity</b> · <b>Devin Desktop</b> · other clients</summary>
+
+Codex keeps the key out of its config and reads it from an environment variable — see
+[examples/codex.md](examples/codex.md).
+
+Every other client takes a JSON file with an address and a `headers` object; only the name of the
+address field differs:
+
+| client | file | address field |
+|---|---|---|
+| Cursor | `~/.cursor/mcp.json` | `url` |
+| Gemini CLI | `~/.gemini/settings.json` | `httpUrl` |
+| Antigravity | `~/.gemini/config/mcp_config.json` | `serverUrl` |
+| Devin Desktop (formerly Windsurf) | its `mcp_config.json` (MCPs → View raw config) | `serverUrl` |
+
+```json
+{
+  "mcpServers": {
+    "umlout": {
+      "serverUrl": "https://www.umlout.com/mcp/http",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" }
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>ChatGPT</b> · <b>Claude connectors</b> · <b>Grok</b> — clients that take only an address</summary>
+
+No key: give the client `https://www.umlout.com/mcp/http`. It opens an Umlout page where you
+sign in and allow it. See [docs/authentication.md](docs/authentication.md#signing-in-without-a-key-oauth).
 </details>
 
 **3. Ask for a diagram:**

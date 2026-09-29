@@ -3,7 +3,7 @@
   "name": "io.github.dmkorj/umlout",
   "title": "Umlout",
   "description": "Create and edit UML, flowchart, wireframe and sequence diagrams on an Umlout whiteboard.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "websiteUrl": "https://www.umlout.com",
   "repository": {
     "url": "https://github.com/dmkorj/umlout-mcp",
@@ -12,12 +12,12 @@
   },
   "remotes": [
     {
-      "type": "sse",
-      "url": "https://www.umlout.com/mcp/sse",
+      "type": "streamable-http",
+      "url": "https://www.umlout.com/mcp/http",
       "headers": [
         {
           "name": "Authorization",
-          "description": "Bearer token. Create a key at https://www.umlout.com/profile under MCP API Keys.",
+          "description": "Bearer token. Create a key at https://www.umlout.com/profile under AI clients.",
           "isRequired": true,
           "isSecret": true,
           "format": "string"

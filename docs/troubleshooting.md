@@ -7,7 +7,7 @@ python3 scripts/check_connection.py --api-key YOUR_API_KEY
 ```
 
 It separates the three failures that look identical from inside a chat client: the service being
-down, the key being rejected, and the SSE stream being blocked on the way.
+down, the key being rejected, and the response stream being blocked on the way.
 
 ---
 
@@ -76,7 +76,7 @@ which npx
     "umlout": {
       "command": "/Users/you/.nvm/versions/node/v22.11.0/bin/npx",
       "args": [
-        "-y", "mcp-remote", "https://www.umlout.com/mcp/sse",
+        "-y", "mcp-remote", "https://www.umlout.com/mcp/http",
         "--header", "Authorization: Bearer YOUR_API_KEY"
       ]
     }
@@ -94,14 +94,13 @@ that version. A Homebrew install avoids the problem entirely.
 [pid] Connection error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
 ```
 
-`mcp-remote` checks for OAuth metadata before it connects, and something answered
-that check with an HTML page instead of JSON — so it never got as far as sending
-your API key.
+`mcp-remote` looks up OAuth metadata, and something answered that lookup with an HTML page
+instead of JSON — so it never got as far as sending your API key.
 
-Umlout authenticates with a static API key and serves no OAuth metadata, so those
-probes return 404 and the bridge falls through to your key. Getting HTML back
-instead means something between you and the server replied first: a corporate
-proxy, a VPN portal, or a captive-portal login page on public Wi-Fi.
+Umlout serves that metadata as JSON: the MCP server names it in its `401`, and it names the
+authorization server where a client without a key can sign in. Getting HTML back means something
+between you and the server replied first: a corporate proxy, a VPN portal, or a captive-portal
+login page on public Wi-Fi.
 
 Confirm what you are actually reaching:
 
@@ -109,41 +108,33 @@ Confirm what you are actually reaching:
 curl -i https://www.umlout.com/.well-known/oauth-authorization-server
 ```
 
-A `404` is correct and expected. Anything returning HTML is the interceptor —
-try the same command off the VPN or on a different network.
+JSON starting with `"issuer"` is correct. Anything returning HTML is the interceptor — try the same
+command off the VPN or on a different network.
 
-## `HTTP 405: Invalid OAuth error response`
+## A browser opens asking you to allow a client, though you set a key
 
-Also shows up as a bare `405 Not Allowed` HTML page in the log.
+Or, with an older `mcp-remote`, `HTTP 405: Invalid OAuth error response` in the log.
 
-```
-Connection error: ServerError: HTTP 405: Invalid OAuth error response:
-SyntaxError: Unexpected token '<', "<html>
-<h"... is not valid JSON. Raw body: <html>
-<head><title>405 Not Allowed</title></head>
-    at registerClient (...)
-    at SSEClientTransport._authThenStart (...)
-```
-
-**Your API key was rejected.** Nothing in that message says so, which is what makes it hard.
-
-Here is the actual sequence. The bridge opens the stream, the server answers `401`, and `mcp-remote`
-reads any `401` as "this server wants OAuth". It then tries to register itself as an OAuth client by
-POSTing to `/register` — an endpoint that does not exist here, because Umlout authenticates with a
-static API key and runs no OAuth server. The web server answers that POST with a plain `405` HTML
-page, the bridge tries to parse it as an OAuth error object, and dies. The `405`, the HTML and the
-web server's name in the output are all downstream of the original `401`.
+**Your API key was rejected.** When the server answers `401`, a client reads it as «sign in
+through OAuth»: it registers itself with Umlout and opens the Umlout page where you allow it. That
+is the right path for a client with no key — ChatGPT's connector, Claude's own connector dialog —
+but a client you gave a key reaches it only because the key was refused. Allowing it there works,
+and the client then connects without the key; fixing the key avoids the detour.
 
 Confirm it by asking the server directly:
 
 ```bash
-curl -i --max-time 5 -H "Authorization: Bearer YOUR_API_KEY" https://www.umlout.com/mcp/sse
+curl -i --max-time 5 -X POST https://www.umlout.com/mcp/http \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
 ```
 
 - `401` with `{"detail":"Invalid or inactive API key."}` — the key is rejected. See
   [HTTP 401](#http-401) below for why.
-- `200` with `content-type: text/event-stream` — the key is fine and the problem is elsewhere.
-  (The command will hang until `--max-time` cuts it off. That is the stream working.)
+- `401` saying the key *is not issued for the MCP server* — it is a key for scripts, which works
+  over REST only. Create a key for your client in **Profile → AI clients**.
+- `200` with an `mcp-session-id` header — the key is fine and the problem is elsewhere.
 
 The cause that hides best: **a key from the wrong environment**. If you run Umlout locally as well as
 using the hosted service, a key minted against your local stack is unknown to production and is
@@ -152,10 +143,10 @@ issued the key before assuming it is broken.
 
 ## HTTP 401
 
-The key is wrong, revoked, or not being sent. Through the `mcp-remote` bridge this surfaces as a
-confusing `405` instead — see [the section above](#http-405-invalid-oauth-error-response).
+The key is wrong, revoked, or not being sent. Through a client that supports OAuth this surfaces as a browser
+opening to allow the client instead — see [the section above](#a-browser-opens-asking-you-to-allow-a-client-though-you-set-a-key).
 
-- Copy the key again from **Profile → MCP API Keys**. It is shown once at creation and cannot be
+- Copy the key again from **Profile → AI clients**. It is shown once at creation and cannot be
   recovered later — if you did not save it, revoke it and make a new one.
 - The header value is `Bearer YOUR_KEY` — the word `Bearer`, one space, then the key. A common slip
   is pasting the key alone, or leaving the angle brackets from `<YOUR_API_KEY>`.
@@ -175,8 +166,11 @@ If you hit this while generating a large diagram, have the assistant use `bulk_a
 
 ## The connection opens, then drops after ~30–60 seconds
 
-An HTTP proxy between you and the server is buffering or timing out the event stream. Corporate
-proxies and some VPNs do this to `text/event-stream` by default.
+An HTTP proxy between you and the server is buffering or timing out the event stream the server
+answers with. Corporate proxies and some VPNs do this to `text/event-stream` by default.
+
+If your client is still pointed at the old address, `/mcp/sse`, a drop after every Umlout deploy is
+expected: an SSE session does not survive a restart of the service. Point it at `/mcp/http`.
 
 The checker reports this as a timeout while the health check still passes. Try the same command off
 the VPN to confirm, then ask whoever runs the proxy to pass `text/event-stream` through unbuffered.

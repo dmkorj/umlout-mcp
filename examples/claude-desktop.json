@@ -6,7 +6,7 @@
       "args": [
         "-y",
         "mcp-remote",
-        "https://www.umlout.com/mcp/sse",
+        "https://www.umlout.com/mcp/http",
         "--header",
         "Authorization: Bearer YOUR_API_KEY"
       ]

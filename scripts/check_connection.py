@@ -2,8 +2,8 @@
 """Check that the Umlout MCP server is reachable and your API key works.
 
 Run this before opening an issue — it distinguishes "the service is down" from
-"my key is wrong" from "something between me and the server is blocking SSE",
-which are three very different problems.
+"my key is wrong" from "something between me and the server is blocking the
+response stream", which are three very different problems.
 
     python3 scripts/check_connection.py --api-key YOUR_API_KEY
 
@@ -20,10 +20,23 @@ import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://www.umlout.com/mcp/sse"
+DEFAULT_URL = "https://www.umlout.com/mcp/http"
 TIMEOUT = 15
 
 OK, FAIL, WARN = "  ok  ", " fail ", " warn "
+
+# The first message every MCP client sends. The server answers it only after
+# the key has been accepted, so it is the smallest request that proves both.
+INITIALIZE = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {},
+        "clientInfo": {"name": "umlout-check-connection", "version": "1"},
+    },
+}
 
 
 def report(status: str, label: str, detail: str = "") -> None:
@@ -32,7 +45,7 @@ def report(status: str, label: str, detail: str = "") -> None:
 
 def check_health(base: str) -> bool:
     """GET /mcp/health — unauthenticated, so this isolates reachability."""
-    url = base.rsplit("/sse", 1)[0] + "/health"
+    url = base.rstrip("/").rsplit("/", 1)[0] + "/health"
     try:
         with urllib.request.urlopen(url, timeout=TIMEOUT) as resp:
             body = json.loads(resp.read().decode("utf-8", "replace") or "{}")
@@ -51,22 +64,29 @@ def check_health(base: str) -> bool:
 
 
 def check_auth(url: str, api_key: str) -> bool:
-    """Open the SSE stream far enough to learn whether the key was accepted.
+    """Send `initialize` and read the first chunk of the answer.
 
-    A valid key yields 200 and an event stream that stays open, so read one
-    chunk and hang up rather than waiting for an end that never comes.
+    A valid key yields 200, an `mcp-session-id` header and a response that
+    may be an event stream, so read one chunk and hang up rather than waiting
+    for an end that may not come.
     """
     req = urllib.request.Request(
         url,
-        headers={"Authorization": f"Bearer {api_key}", "Accept": "text/event-stream"},
+        data=json.dumps(INITIALIZE).encode(),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            ctype = resp.headers.get("Content-Type", "")
-            resp.read(1)  # first byte proves the stream opened, then we stop
+            session = resp.headers.get("mcp-session-id", "")
+            resp.read(1)  # the first byte proves the answer arrived, then we stop
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
-            report(FAIL, "API key accepted", f"HTTP {exc.code} — key is wrong, revoked, or malformed")
+            report(FAIL, "API key accepted", f"HTTP {exc.code} — key is wrong, revoked, malformed, or a key for scripts")
         elif exc.code == 429:
             report(WARN, "API key accepted", "HTTP 429 — key is valid but you are rate limited")
             return True
@@ -74,17 +94,17 @@ def check_auth(url: str, api_key: str) -> bool:
             report(FAIL, "API key accepted", f"HTTP {exc.code}")
         return False
     except TimeoutError:
-        report(FAIL, "API key accepted", "timed out waiting for the stream — a proxy may be buffering SSE")
+        report(FAIL, "API key accepted", "timed out waiting for the answer — a proxy may be buffering the stream")
         return False
     except Exception as exc:  # noqa: BLE001
         report(FAIL, "API key accepted", str(exc))
         return False
 
-    if "text/event-stream" not in ctype:
-        report(WARN, "API key accepted", f"stream opened but Content-Type is {ctype!r}")
+    if not session:
+        report(WARN, "API key accepted", "answered, but without an mcp-session-id header")
         return True
 
-    report(OK, "API key accepted", "SSE stream opened")
+    report(OK, "API key accepted", "session opened")
     return True
 
 
@@ -92,7 +112,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--api-key", default=os.environ.get("UMLOUT_API_KEY"),
                         help="Umlout API key (default: $UMLOUT_API_KEY)")
-    parser.add_argument("--url", default=DEFAULT_URL, help=f"SSE endpoint (default: {DEFAULT_URL})")
+    parser.add_argument("--url", default=DEFAULT_URL, help=f"MCP endpoint (default: {DEFAULT_URL})")
     args = parser.parse_args()
 
     print(f"Checking {args.url}\n")

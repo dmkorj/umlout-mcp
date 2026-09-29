@@ -3,7 +3,7 @@
 One command, no config file:
 
 ```bash
-claude mcp add --transport sse umlout https://www.umlout.com/mcp/sse --header "Authorization: Bearer YOUR_API_KEY"
+claude mcp add --transport http umlout https://www.umlout.com/mcp/http --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
 Verify it registered:
@@ -23,7 +23,7 @@ repository, add `--scope project` — this writes `.mcp.json` at the repo root, 
 committed. Do not put a live key in a project-scoped config; use an environment variable instead:
 
 ```bash
-claude mcp add --transport sse umlout https://www.umlout.com/mcp/sse --scope project --header "Authorization: Bearer \${UMLOUT_API_KEY}"
+claude mcp add --transport http umlout https://www.umlout.com/mcp/http --scope project --header "Authorization: Bearer \${UMLOUT_API_KEY}"
 ```
 
 Each collaborator then exports their own `UMLOUT_API_KEY`.
