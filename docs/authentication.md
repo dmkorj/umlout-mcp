@@ -28,12 +28,25 @@ Use whichever your client supports; they are equivalent. Most MCP clients expres
 ## What a key can reach
 
 A key is bound to the account that created it and carries that account's permissions — no more.
-The assistant sees the diagrams and models you own plus those explicitly shared with you. Write
-operations respect the same roles as the web app: editors can change a model's contents, but only
-an owner can delete a model or rename and delete a diagram.
+The assistant sees the projects you own plus those shared with you, and every board, object,
+relation, type and file inside them.
+
+Permission is set on the **project**, never on a board or an object, and the roles are the web
+app's (**Project → Access**):
+
+| role | what the assistant may do in the project |
+|---|---|
+| owner | everything, including `delete_project` |
+| editor | create, change, delete and restore boards, objects, relations, types, fields, figures and files; rename and delete boards; make the project public; resolve any comment and delete any comment |
+| commenter | read everything; list and add comments; delete their own comments |
+| viewer | read everything except comments |
+
+A tool marked **Editors only** in [tools.md](tools.md) refuses a commenter and a viewer. A deleted board,
+object, relation, declared type, shared field or file is kept: `list_deleted` shows it and the
+`restore_*` tools bring it back. Deleting a project or a comment cannot be undone.
 
 There is no organisation-wide or admin-scoped key. If two people should each drive their own
-workspace, they each create their own key.
+workspace, they each create their own key. An account may hold up to five active keys.
 
 ## Signing in without a key (OAuth)
 
@@ -57,20 +70,29 @@ names the authorization server `https://www.umlout.com`, whose metadata is at
 
 ## Rate limits
 
-| Scope | Limit | Window |
-|---|---|---|
-| Requests per account | 60 | 1 minute |
-| Write tool calls per account | 600 | 1 hour |
-| Bulk write calls (`bulk_*`) per account | 60 | 1 hour |
-| Failed auth attempts per IP | 20 | 15 minutes |
+| Scope | Limit | Window | What counts |
+|---|---|---|---|
+| Tool calls per account | 300 | 1 minute | every tool call and resource read, except `get_rate_limit_status` |
+| Write tool calls per account | 600 | 1 hour | every tool whose name does not start with `get_`, `list_` or `find_` |
+| Bulk write calls per account | 600 | 1 hour | every `bulk_*` tool — **in addition to** the write budget |
+| HTTP requests per account | 600 | 1 minute | every request to the server, before any tool runs |
+| Failed auth attempts per IP | 20 | 15 minutes | requests with a missing, revoked or mistyped key |
 
-Reads (`get_*`, `list_*`, `find_*`) count toward the request limit but not the write budgets.
+A `bulk_*` call costs one write and one bulk write, however many items it carries, so batching is
+always the cheaper way to write many items. Reads cost a tool call and nothing else, so a client
+that only reads never uses up the write budgets.
 
-The bulk budget is deliberately tighter than the write budget: a single `bulk_add_shapes` or
-`bulk_create_model_items` call can write hundreds of items, so 60 of them per hour is a larger
-allowance than it looks.
+A tool call over its budget is refused before anything is written. The refusal comes back as the
+tool's error result, and its text is a JSON object the client can act on:
 
-Exceeding a limit returns an error to the client; nothing is partially written.
+```json
+{"error":"rate_limited","scope":"mcp:tool-write","retry_after":412,"limit":600,"window_seconds":3600}
+```
+
+`retry_after` is the number of seconds until the call would succeed. `get_rate_limit_status`
+reports what is left of every budget and costs nothing. Only the HTTP request limit answers with
+HTTP `429` instead; it is set well above the tool-call limit, so a client that respects
+`retry_after` does not reach it.
 
 ## Rotating and revoking
 

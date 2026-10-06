@@ -12,7 +12,7 @@ Verify it registered:
 claude mcp list
 ```
 
-Then ask for a diagram in any session:
+Then ask for a board in any session:
 
 > Create a board called "Ingest pipeline" and draw the flow: S3 → Lambda → SQS → worker → Postgres.
 

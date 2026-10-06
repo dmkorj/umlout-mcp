@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.dmkorj/umlout",
   "title": "Umlout",
-  "description": "Create and edit UML, flowchart, wireframe and sequence diagrams on an Umlout whiteboard.",
-  "version": "1.1.0",
+  "description": "Build Umlout projects: objects with types and fields, relations, and boards that draw them.",
+  "version": "1.2.0",
   "websiteUrl": "https://www.umlout.com",
   "repository": {
     "url": "https://github.com/dmkorj/umlout-mcp",

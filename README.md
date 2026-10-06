@@ -3,9 +3,10 @@
 Let your AI assistant draw on a real whiteboard.
 
 Umlout exposes a hosted [Model Context Protocol](https://modelcontextprotocol.io/) server, so
-Claude, Cursor, VS Code Copilot and any other MCP client can create and edit diagrams in your
-[Umlout](https://www.umlout.com) workspace — UML class and sequence diagrams, flowcharts, activity
-diagrams, wireframes and domain models.
+Claude, Cursor, VS Code Copilot and any other MCP client can build and edit projects in your
+[Umlout](https://www.umlout.com) workspace — UML class, sequence, activity and state boards,
+flowcharts, wireframes, agile and planning boards, floor plans, dashboards and cloud architecture
+drawn with the AWS, Azure and Kubernetes icon sets.
 
 Nothing to install and nothing to run: the server is hosted at `https://www.umlout.com/mcp/http`
 (Streamable HTTP). The older SSE address, `/mcp/sse`, still answers, but an SSE session does not
@@ -114,9 +115,10 @@ No key: give the client `https://www.umlout.com/mcp/http`. It opens an Umlout pa
 sign in and allow it. See [docs/authentication.md](docs/authentication.md#signing-in-without-a-key-oauth).
 </details>
 
-**3. Ask for a diagram:**
+**3. Ask for a board:**
 
-> Draw a UML sequence diagram of an OAuth2 authorization code flow on a new board called "Auth".
+> Create a project "Auth" and draw a UML sequence diagram of the OAuth2 authorization code flow
+> on a board in it.
 
 Verify your setup at any time:
 
@@ -128,39 +130,56 @@ python3 scripts/check_connection.py --api-key YOUR_API_KEY
 
 ## What it can do
 
-**37 tools** across four areas, plus **4 read-only resources**. Full reference with every argument:
+**95 tools** across twelve areas, plus **4 read-only resources**. Full reference with every argument:
 [docs/tools.md](docs/tools.md) and [docs/resources.md](docs/resources.md).
+
+Umlout stores a **project**, and a board is one view of it. A project holds **objects** — each with
+a name, exactly one **type**, its own properties and a description — and the **relations** between
+them. A **figure** on a board is one drawing of an object, so the same object can be drawn on five
+boards and is still one object; a line on a board is one drawing of a relation.
 
 | Area | What the assistant can do |
 |---|---|
-| **Diagrams** | Create, list, find, rename, clear and delete boards |
-| **Shapes & connections** | Add and edit shapes, draw connections with UML notation, place sequence messages, define custom anchor points, bulk-create hundreds of elements in one call |
-| **Domain models** | Build nestable folders → elements → relations; create a whole model tree in a single call |
-| **Comments** | Add, list, resolve and delete comments and replies on any element |
+| **Projects** | Create, list, read, rename, share publicly and delete projects |
+| **Boards** | Create boards in a project, find them by name, rename, point the camera, clear, delete and restore |
+| **Objects and folders** | Create objects, folders and relations in one call; update, merge duplicates, give an object its own detail board |
+| **Relations** | Create and update relations with UML detail; reverse a relation's direction |
+| **Types and fields** | Browse the catalogue's types; declare the project's own types; describe each type's fields — text, number, yes/no, choice, markdown, reference, counter, computed, file, list of pairs — and the template an object of the type is drawn with |
+| **Shared fields** | Describe a field once and use it in several types |
+| **Shapes and connections** | Draw figures of objects and free figures, UML classes with their compartments, connections with UML notation, sequence messages, custom anchor points; update and delete one at a time or hundreds per call |
+| **Composite figures and palettes** | Save a set of figures as one card and place it again; redraw older copies; arrange the toolbar's palettes |
+| **Files** | Upload files into a project, rename, delete and restore them; show an image in an Image figure |
+| **Comments** | Add, list, resolve and delete comments and replies on any figure or line |
+| **Deleted items** | List what was deleted in a project and restore it — a board, an object, a relation, a type, a shared field or a file |
+| **Plan and limits** | Read the plan's quotas and what is left of the rate-limit budgets |
 
-The shape vocabulary covers **70 types** — basic geometry, UML class/interface/package, sequence
-(actor, lifeline, activation, fragment), activity (action, decision, fork/join, swimlanes), and a
-full wireframe kit (screens, buttons, inputs, navbars, tables, cards).
+The figure vocabulary covers **205 figures** — basic geometry, UML (class, use case, state,
+activity, sequence, component, deployment, timing), flowchart, charts and dashboard figures,
+agile and retrospective cards, plans with stages and tasks, floor plans, and a full wireframe kit —
+plus the AWS, Azure and Kubernetes icon libraries.
 
 ### Things worth asking for
 
 - *"Turn this OpenAPI spec into a component diagram."*
 - *"Sketch the mobile onboarding flow as wireframes — three screens."*
 - *"Read the board 'Checkout' and tell me which states have no outgoing transitions."*
-- *"Build a domain model from these requirements: orders, invoices, customers."*
+- *"Build a project from these requirements: orders, invoices, customers — one type per noun,
+  with their fields — and draw a class board of it."*
+- *"Add a `status` field to every Task and count the done ones on each Stage."*
 
 ---
 
 ## Authentication and limits
 
-Every request carries your key in `Authorization: Bearer <key>` (or `X-API-Key`). Keys are scoped
-to your account — the assistant sees exactly the diagrams you can see, and nothing else.
+Every request carries your key in `Authorization: Bearer <key>` (or `X-API-Key`), or an OAuth
+token for a client that signs in through the browser. Both are scoped to your account — the
+assistant sees exactly the projects you can see, with the role you have in each, and nothing else.
 
 | Limit | Value |
 |---|---|
-| Requests | 60 per minute |
+| Tool calls | 300 per minute |
 | Write tool calls | 600 per hour |
-| Bulk write calls (`bulk_*`) | 60 per hour |
+| Bulk write calls (`bulk_*`) | 600 per hour, in addition to the write budget |
 
 Details, key rotation and revocation: [docs/authentication.md](docs/authentication.md).
 Something not working? [docs/troubleshooting.md](docs/troubleshooting.md).

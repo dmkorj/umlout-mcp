@@ -156,13 +156,20 @@ opening to allow the client instead — see [the section above](#a-browser-opens
 After 20 failed attempts from one IP in 15 minutes, further attempts are blocked for the rest of
 that window — fix the key, then wait it out.
 
-## HTTP 429
+## "rate_limited", or HTTP 429
 
-You hit a rate limit: 60 requests/minute, 600 write calls/hour, or 60 `bulk_*` calls/hour. Nothing
-was partially written. Wait for the window to roll over.
+A tool call over its budget comes back as an error whose text starts with
+`{"error":"rate_limited"`. Nothing was written. The object names the budget (`scope`) and the seconds
+to wait (`retry_after`); `get_rate_limit_status` shows every budget at once. The limits are 300 tool
+calls a minute, 600 writes an hour and 600 `bulk_*` calls an hour —
+[authentication.md](authentication.md#rate-limits) has the full table.
 
-If you hit this while generating a large diagram, have the assistant use `bulk_add_shapes` and
-`bulk_add_connections` instead of one call per element — that is what they exist for.
+HTTP `429` is the per-request limit, 600 requests a minute, which sits above the tool-call limit and
+is reached only by a client that ignores `retry_after`.
+
+If you hit a limit while drawing a large board, have the assistant use `bulk_add_shapes`,
+`bulk_add_connections` and `bulk_create_project_items` instead of one call per item: a bulk call
+costs one write however many items it carries.
 
 ## The connection opens, then drops after ~30–60 seconds
 
@@ -175,18 +182,22 @@ expected: an SSE session does not survive a restart of the service. Point it at 
 The checker reports this as a timeout while the health check still passes. Try the same command off
 the VPN to confirm, then ask whoever runs the proxy to pass `text/event-stream` through unbuffered.
 
-## The assistant says a diagram does not exist
+## The assistant says a board or a project does not exist
 
-A key only reaches the workspace of the account that created it. If the board lives in someone
-else's account, it has to be shared with you first — the key does not widen access.
+A key only reaches the projects of the account that created it and the projects shared with that
+account. If the board is in someone else's project, the project has to be shared with you first
+(**Project → Access**) — the key does not widen access. A deleted board is not found either;
+`list_deleted` on its project shows it, and `restore_board` brings it back.
 
-Also check the assistant is not inventing an id. `find_diagram_by_name` matches the name
-**exactly**, including case and spacing; `list_diagrams` is the reliable way to get real ids.
+Also check the assistant is not inventing an id. `find_board_by_name` matches the whole name,
+ignoring case; `list_projects` and `list_project_boards` are the reliable way to get real ids.
 
 ## Writes fail with a permissions error
 
-Roles are the same as in the web app. Editors can change a model's contents, but renaming or
-deleting a diagram, and deleting a model, require ownership.
+Roles are set on the project and are the same as in the web app. An editor may change everything
+inside the project, including renaming and deleting its boards; only the owner may delete the
+project itself. A commenter may read and comment, and a viewer may only read. The table is in
+[authentication.md](authentication.md#what-a-key-can-reach).
 
 ## Something else
 
